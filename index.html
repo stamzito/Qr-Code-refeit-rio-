@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Credencial Digital</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+
+    <style>
+        :root { --primary-color: #2563eb; }
+        body { background: #f1f5f9; padding: 20px; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 450px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        button { width: 100%; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #reader { width: 100%; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+        #credencial-card { width: 320px; height: 568px; background: white; margin: 20px auto; padding: 40px; text-align: center; border: 1px solid #ccc; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+        .qrcode-area { margin-top: 20px; padding: 10px; background: white; border: 1px solid #eee; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Gerador de Credencial</h2>
+        <label>Nome do Funcionário:</label>
+        <input type="text" id="nomeInput" placeholder="Digite seu nome" oninput="atualizarTexto()">
+        
+        <button id="btn-camera">Abrir Câmera para QR Code</button>
+        <div id="reader"></div>
+        <p id="status" style="margin-top:10px; font-weight:bold;"></p>
+    </div>
+
+    <div id="preview-section" style="display: none; margin-top: 20px;">
+        <div id="credencial-card">
+            <h3>LOGO EMPRESA</h3>
+            <div>
+                <p>Nome:</p>
+                <strong id="card-nome">...</strong>
+                <p>Matrícula:</p>
+                <strong id="card-matricula" style="color:var(--primary-color)">...</strong>
+            </div>
+            <div class="qrcode-area" id="qrcode-canvas"></div>
+        </div>
+        <button id="download-btn" style="background:#10b981">Baixar PNG</button>
+    </div>
+
+    <script>
+        let html5QrCode;
+        let matricula = "";
+
+        // Inicializa o Scanner
+        document.getElementById('btn-camera').addEventListener('click', () => {
+            const btn = document.getElementById('btn-camera');
+            btn.style.display = 'none'; // Esconde o botão após clicar
+            
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: "environment" }, // Tenta usar a câmera traseira
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    matricula = decodedText;
+                    document.getElementById('status').innerText = "Sucesso! Matrícula: " + matricula;
+                    document.getElementById('card-matricula').innerText = matricula;
+                    
+                    // Para a câmera e esconde o leitor
+                    html5QrCode.stop();
+                    document.getElementById('reader').style.display = 'none';
+                    document.getElementById('preview-section').style.display = 'block';
+                    gerarQRExibicao();
+                }
+            ).catch(err => { alert("Erro ao acessar a câmera: " + err); });
+        });
+
+        function atualizarTexto() {
+            document.getElementById('card-nome').innerText = document.getElementById('nomeInput').value || "...";
+        }
+
+        function gerarQRExibicao() {
+            document.getElementById('qrcode-canvas').innerHTML = "";
+            new QRCode(document.getElementById("qrcode-canvas"), {
+                text: matricula,
+                width: 150,
+                height: 150
+            });
+        }
+
+        document.getElementById('download-btn').addEventListener('click', () => {
+            htmlToImage.toPng(document.getElementById('credencial-card'), { pixelRatio: 3 })
+            .then(dataUrl => {
+                const link = document.createElement('a');
+                link.download = 'minha_credencial.png';
+                link.href = dataUrl;
+                link.click();
+            });
+        });
+    </script>
+</body>
+</html>

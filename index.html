@@ -121,6 +121,13 @@
             width: 100%;
         }
 
+        /* Elemento que será convertido em imagem (fica oculto em offscreen) */
+        #render-box {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+        }
+
         #credencial-card {
             width: 340px;
             height: 540px; 
@@ -171,6 +178,7 @@
             margin-bottom: 22px;
             padding: 0 20px;
             word-wrap: break-word;
+            text-transform: uppercase; /* Força letras maiúsculas no CSS */
         }
 
         .info-id {
@@ -199,7 +207,6 @@
             border: none;
         }
 
-        /* Segmentos da barra institucional alinhados milimetricamente */
         .bar-seg { 
             height: 100%; 
             border: none;
@@ -212,6 +219,14 @@
         .seg-4 { background-color: #38bdf8; width: 16.66%; } 
         .seg-5 { background-color: #047857; width: 16.66%; } 
         .seg-6 { background-color: #86efac; width: 16.66%; } 
+
+        /* Exibição da Imagem Final Gerada */
+        #snapshot-img {
+            width: 340px;
+            height: 540px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            background-color: #fff;
+        }
 
         #download-btn {
             margin-top: 15px;
@@ -245,23 +260,21 @@
 
         <div class="disclaimer-group">
             <input type="checkbox" id="termosCheckbox">
-            <label Skinner for="termosCheckbox">Estou ciente e aceito os <a href="seu-link-dos-termos.html" target="_blank">Termos e Condições de Uso</a> estabelecidos.</label>
+            <label for="termosCheckbox">Estou ciente e aceito os <a href="seu-link-dos-termos.html" target="_blank">Termos e Condições de Uso</a> estabelecidos.</label>
         </div>
 
         <button class="btn-action" id="gerar-btn">Visualizar Credencial</button>
     </div>
 
-    <div class="preview-container" id="preview-section" style="display: none;">
-        
+    <div id="render-box">
         <div id="credencial-card">
-            
             <div class="logo-container">
                 <img src="Logo sem Fundo.png" alt="Logos Institucionais" class="logo-img">
             </div>
 
             <div class="user-info">
                 <div class="info-label">Profissional</div>
-                <div class="info-nome" id="card-nome">Wellyngton</div>
+                <div class="info-nome" id="card-nome">WELLESLEY</div>
 
                 <div class="info-label" style="margin-top: 5px;">ID</div>
                 <div class="info-id" id="card-id">245688</div>
@@ -279,22 +292,25 @@
                 <div class="bar-seg seg-5"></div>
                 <div class="bar-seg seg-6"></div>
             </div>
-            
         </div>
+    </div>
 
+    <div class="preview-container" id="preview-section" style="display: none;">
+        <img id="snapshot-img" src="" alt="Credencial Gerada">
         <button class="btn-action" id="download-btn">📥 Baixar Imagem do Crachá</button>
     </div>
 
     <script>
         let idDetectado = "";
+        let imagemUrlPronta = ""; // Guarda o PNG gerado em memória para o download seguro
         const html5QrCode = new Html5Qrcode("cameraInput");
 
         function atualizarNome() {
             const nome = document.getElementById('nomeInput').value;
-            document.getElementById('card-nome').innerText = nome || "Nome";
+            document.getElementById('card-nome').innerText = nome.toUpperCase() || "NOME";
         }
 
-        // Processa a inserção manual do ID ao apertar Enter
+        // Inserção manual do ID
         document.getElementById('manualIdInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -319,14 +335,14 @@
             }
         });
 
-        // Processa a foto capturada pela câmera
+        // Captura pela Câmera
         document.getElementById('cameraInput').addEventListener('change', e => {
             if (e.target.files.length == 0) return;
             
             const file = e.target.files[0];
             const statusText = document.getElementById('status');
             statusText.innerText = "Lendo código...";
-            document.getElementById('manualIdInput').value = ""; // Limpa campo manual caso use foto
+            document.getElementById('manualIdInput').value = "";
 
             html5QrCode.scanFile(file, true)
             .then(decodedText => {
@@ -341,7 +357,7 @@
             });
         });
 
-        // Apenas gera o QR Code e exibe o elemento na tela
+        // GERA A IMAGEM ESTÁTICA DEFINITIVA (CONGELA OS DADOS)
         document.getElementById('gerar-btn').addEventListener('click', () => {
             const nome = document.getElementById('nomeInput').value.trim();
             const checkboxTermos = document.getElementById('termosCheckbox');
@@ -353,9 +369,12 @@
             if(!nome) { alert("Digite o nome antes."); return; }
             if(!idDetectado) { alert("Forneça um ID válido através da foto ou inserção manual."); return; }
 
-            document.getElementById('qrcode-canvas').innerHTML = "";
+            // Configura os textos em Caixa Alta no HTML oculto
+            document.getElementById('card-nome').innerText = nome.toUpperCase();
+            document.getElementById('card-id').innerText = idDetectado;
 
-            // Cria o QR Code purista na tela
+            // Limpa e recria o QR Code estrito
+            document.getElementById('qrcode-canvas').innerHTML = "";
             new QRCode(document.getElementById("qrcode-canvas"), {
                 text: idDetectado,
                 width: 175, 
@@ -365,53 +384,66 @@
                 correctLevel : QRCode.CorrectLevel.H
             });
 
-            document.getElementById('preview-section').style.display = 'flex';
-            document.getElementById('preview-section').scrollIntoView({ behavior: 'smooth' });
+            // Aguarda os elementos estabilizarem e converte em imagem imutável instantaneamente
+            setTimeout(() => {
+                const card = document.getElementById('credencial-card');
+                const logoImg = card.querySelector('.logo-img');
+
+                const tirarFotoEstrutura = () => {
+                    htmlToImage.toPng(card, { 
+                        quality: 1.0, 
+                        pixelRatio: 3,
+                        cacheBust: true 
+                    })
+                    .then(function (dataUrl) {
+                        // Salva o link do PNG definitivo e coloca na tag de visualização
+                        imagemUrlPronta = dataUrl;
+                        document.getElementById('snapshot-img').src = dataUrl;
+                        
+                        // Mostra a seção de visualização
+                        document.getElementById('preview-section').style.display = 'flex';
+                        document.getElementById('preview-section').scrollIntoView({ behavior: 'smooth' });
+                    })
+                    .catch(function (error) {
+                        alert('Erro ao congelar imagem do crachá.');
+                        console.error(error);
+                    });
+                };
+
+                // Converte logo local pré-renderização para evitar erros de Canvas no download
+                if (logoImg && logoImg.src && !logoImg.src.startsWith('data:')) {
+                    const imgTemp = new Image();
+                    imgTemp.crossOrigin = 'anonymous';
+                    imgTemp.src = logoImg.src;
+                    imgTemp.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = imgTemp.width;
+                        canvas.height = imgTemp.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(imgTemp, 0, 0);
+                        logoImg.src = canvas.toDataURL('image/png');
+                        setTimeout(tirarFotoEstrutura, 100);
+                    };
+                    imgTemp.onerror = () => tirarFotoEstrutura();
+                } else {
+                    tirarFotoEstrutura();
+                }
+            }, 300);
         });
 
-        // Processo focado exclusivamente no download do elemento estruturado
+        // DOWNLOAD DIRETO DO ARQUIVO COMPILADO (Sem reprocessamento lento)
         document.getElementById('download-btn').addEventListener('click', () => {
-            const card = document.getElementById('credencial-card');
-            const logoImg = card.querySelector('.logo-img');
-
-            const processarDownload = () => {
-                htmlToImage.toPng(card, { 
-                    quality: 1.0, 
-                    pixelRatio: 3,
-                    cacheBust: true 
-                })
-                .then(function (dataUrl) {
-                    const link = document.createElement('a');
-                    const nomeParaArquivo = document.getElementById('nomeInput').value.replace(/\s+/g, '_');
-                    link.download = `Cracha_${nomeParaArquivo}.png`;
-                    link.href = dataUrl;
-                    link.click();
-                })
-                .catch(function (error) {
-                    alert('Erro ao exportar imagem. Caso o erro persista no GitHub Pages, certifique-se de que a imagem da logo está na mesma raiz do repositório.');
-                    console.error(error);
-                });
-            };
-
-            // Conversor de proteção local para Base64 (evita erro de restrição no Canvas)
-            if (logoImg && logoImg.src && !logoImg.src.startsWith('data:')) {
-                const imgTemp = new Image();
-                imgTemp.crossOrigin = 'anonymous';
-                imgTemp.src = logoImg.src;
-                imgTemp.onload = function () {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = imgTemp.width;
-                    canvas.height = imgTemp.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(imgTemp, 0, 0);
-                    logoImg.src = canvas.toDataURL('image/png');
-                    
-                    setTimeout(processarDownload, 150);
-                };
-                imgTemp.onerror = () => processarDownload();
-            } else {
-                processarDownload();
+            if (!imagemUrlPronta) {
+                alert("Gere a credencial antes de tentar baixar.");
+                return;
             }
+            const nomeInput = document.getElementById('nomeInput').value.trim().toUpperCase();
+            const nomeParaArquivo = nomeInput ? nomeInput.replace(/\s+/g, '_') : 'CREDENCIAL';
+            
+            const link = document.createElement('a');
+            link.download = `Cracha_${nomeParaArquivo}.png`;
+            link.href = imagemUrlPronta;
+            link.click();
         });
     </script>
 </body>

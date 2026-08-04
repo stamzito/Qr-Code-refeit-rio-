@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Credencial Oficial</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 360px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            text-align: center;
+            color: #1e3a8a;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        /* Container flex alinhando o input e o novo botão lado a lado */
+        .input-inline-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-inline {
+            padding: 0 16px;
+            background-color: #1e3a8a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .disclaimer-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 15px 0;
+            font-size: 0.85rem;
+            line-height: 1.3;
+        }
+
+        .disclaimer-group input {
+            margin-top: 2px;
+            cursor: pointer;
+        }
+
+        .disclaimer-group a {
+            color: #1e3a8a;
+            text-decoration: underline;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            background-color: #1e3a8a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .btn-scan {
+            background-color: #475569;
+            margin-bottom: 10px;
+        }
+
+        #status {
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-top: 4px;
+            color: #dc2626;
+            word-break: break-all;
+        }
+        #status.success {
+            color: #16a34a;
+        }
+
+        /* --- DESIGN FIEL À IMAGEM --- */
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* Elemento que será convertido em imagem (fica oculto em offscreen) */
+        #render-box {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+        }
+
+        #credencial-card {
+            width: 340px;
+            height: 540px; 
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 25px 0 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-container {
+            width: 100%;
+            padding: 0 25px;
+            height: 55px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .user-info {
+            text-align: center;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .info-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: #000000;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .info-nome {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #000000;
+            margin-bottom: 22px;
+            padding: 0 20px;
+            word-wrap: break-word;
+            text-transform: uppercase; /* Força letras maiúsculas no CSS */
+        }
+
+        .info-id {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: #000000;
+        }
+
+        .qrcode-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            margin-bottom: 15px;
+        }
+
+        /* Container da Barra Colorida no Rodapé */
+        .footer-bar {
+            width: 100%;
+            height: 14px;
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+
+        .bar-seg { 
+            height: 100%; 
+            border: none;
+            margin: 0;
+            padding: 0;
+        }
+        .seg-1 { background-color: #fde047; width: 16.66%; } 
+        .seg-2 { background-color: #eab308; width: 16.66%; } 
+        .seg-3 { background-color: #004691; width: 16.66%; } 
+        .seg-4 { background-color: #38bdf8; width: 16.66%; } 
+        .seg-5 { background-color: #047857; width: 16.66%; } 
+        .seg-6 { background-color: #86efac; width: 16.66%; } 
+
+        /* Exibição da Imagem Final Gerada */
+        #snapshot-img {
+            width: 340px;
+            height: 540px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            background-color: #fff;
+        }
+
+        #download-btn {
+            margin-top: 15px;
+            width: 340px;
+            background-color: #10b981;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Painel do Crachá</h2>
+        
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+        
+        <button class="btn-action btn-scan" onclick="document.getElementById('cameraInput').click()">
+            📸 Tirar Foto do QR Code (ID)
+        </button>
+
+        <div class="form-group" style="margin-top: 5px;">
+            <label for="manualIdInput">Ou insira o ID Manualmente:</label>
+            <div class="input-inline-group">
+                <input type="text" id="manualIdInput" placeholder="Digite o ID">
+                <button type="button" class="btn-inline" id="inserirIdBtn">Inserir</button>
+            </div>
+        </div>
+
+        <p id="status">Nenhum QR Code lido</p>
+
+        <div class="form-group" style="margin-top: 12px;">
+            <label for="nomeInput">Nome do Profissional:</label>
+            <input type="text" id="nomeInput" placeholder="Seu Nome" oninput="atualizarNome()">
+        </div>
+
+        <div class="disclaimer-group">
+            <input type="checkbox" id="termosCheckbox">
+            <label for="termosCheckbox">Estou ciente e aceito os <a href="termos.html" target="_blank">Termos e Condições de Uso</a> estabelecidos.</label>
+        </div>
+
+        <button class="btn-action" id="gerar-btn">Visualizar Credencial</button>
+    </div>
+
+    <div id="render-box">
+        <div id="credencial-card">
+            <div class="logo-container">
+                <img src="Logo sem Fundo.png" alt="Logos Institucionais" class="logo-img">
+            </div>
+
+            <div class="user-info">
+                <div class="info-label">Profissional</div>
+                <div class="info-nome" id="card-nome">WELLESLEY</div>
+
+                <div class="info-label" style="margin-top: 5px;">ID</div>
+                <div class="info-id" id="card-id">245688</div>
+            </div>
+
+            <div class="qrcode-wrapper">
+                <div id="qrcode-canvas"></div>
+            </div>
+
+            <div class="footer-bar">
+                <div class="bar-seg seg-1"></div>
+                <div class="bar-seg seg-2"></div>
+                <div class="bar-seg seg-3"></div>
+                <div class="bar-seg seg-4"></div>
+                <div class="bar-seg seg-5"></div>
+                <div class="bar-seg seg-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="preview-container" id="preview-section" style="display: none;">
+        <img id="snapshot-img" src="" alt="Credencial Gerada">
+        <button class="btn-action" id="download-btn">📥 Baixar Imagem do Crachá</button>
+    </div>
+
+    <script>
+        let idDetectado = "";
+        let imagemUrlPronta = ""; // Guarda o PNG gerado em memória para o download seguro
+        const html5QrCode = new Html5Qrcode("cameraInput");
+
+        function atualizarNome() {
+            const nome = document.getElementById('nomeInput').value;
+            document.getElementById('card-nome').innerText = nome.toUpperCase() || "NOME";
+        }
+
+        // Inserção manual do ID através do botão "Inserir"
+        document.getElementById('inserirIdBtn').addEventListener('click', function() {
+            const inputElement = document.getElementById('manualIdInput');
+            const valorManual = inputElement.value.trim();
+            
+            if (!valorManual) {
+                alert("Por favor, insira um código válido.");
+                return;
+            }
+
+            const confirmar = confirm("ID adicionado manualmente, Apenas utilize seu ID/Prontuario.\n\nAo Adicionar ID Manualmente você assume que os dados fornecidos são seu, o mau uso dessa opção pode acarretar em prejuizos a você.");
+            
+            if (confirmar) {
+                idDetectado = valorManual;
+                const statusText = document.getElementById('status');
+                statusText.classList.add('success');
+                statusText.innerText = "✓ ID Manual Registrado: " + idDetectado;
+                document.getElementById('card-id').innerText = idDetectado;
+            } else {
+                inputElement.value = "";
+            }
+        });
+
+        // Captura pela Câmera
+        document.getElementById('cameraInput').addEventListener('change', e => {
+            if (e.target.files.length == 0) return;
+            
+            const file = e.target.files[0];
+            const statusText = document.getElementById('status');
+            statusText.innerText = "Lendo código...";
+            document.getElementById('manualIdInput').value = "";
+
+            html5QrCode.scanFile(file, true)
+            .then(decodedText => {
+                idDetectado = decodedText.trim();
+                statusText.classList.add('success');
+                statusText.innerText = "✓ ID Carregado!";
+                document.getElementById('card-id').innerText = idDetectado;
+            })
+            .catch(err => {
+                statusText.classList.remove('success');
+                statusText.innerText = "❌ Centralize melhor o QR code e tire outra foto.";
+            });
+        });
+
+        // GERA A IMAGEM ESTÁTICA DEFINITIVA (CONGELA OS DADOS)
+        document.getElementById('gerar-btn').addEventListener('click', () => {
+            const nome = document.getElementById('nomeInput').value.trim();
+            const checkboxTermos = document.getElementById('termosCheckbox');
+            
+            if(!checkboxTermos.checked) {
+                alert("Você precisa aceitar os Termos e Condições de Uso para prosseguir.");
+                return;
+            }
+            if(!nome) { alert("Digite o nome antes."); return; }
+            if(!idDetectado) { alert("Forneça um ID válido através da foto ou inserção manual."); return; }
+
+            // Configura os textos em Caixa Alta no HTML oculto
+            document.getElementById('card-nome').innerText = nome.toUpperCase();
+            document.getElementById('card-id').innerText = idDetectado;
+
+            // Limpa e recria o QR Code estrito
+            document.getElementById('qrcode-canvas').innerHTML = "";
+            new QRCode(document.getElementById("qrcode-canvas"), {
+                text: idDetectado,
+                width: 175, 
+                height: 175,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            // Aguarda os elementos estabilizarem e converte em imagem imutável instantaneamente
+            setTimeout(() => {
+                const card = document.getElementById('credencial-card');
+                const logoImg = card.querySelector('.logo-img');
+
+                const tirarFotoEstrutura = () => {
+                    htmlToImage.toPng(card, { 
+                        quality: 1.0, 
+                        pixelRatio: 3,
+                        cacheBust: true 
+                    })
+                    .then(function (dataUrl) {
+                        // Salva o link do PNG definitivo e coloca na tag de visualização
+                        imagemUrlPronta = dataUrl;
+                        document.getElementById('snapshot-img').src = dataUrl;
+                        
+                        // Mostra a seção de visualização
+                        document.getElementById('preview-section').style.display = 'flex';
+                        document.getElementById('preview-section').scrollIntoView({ behavior: 'smooth' });
+                    })
+                    .catch(function (error) {
+                        alert('Erro ao congelar imagem do crachá.');
+                        console.error(error);
+                    });
+                };
+
+                // Converte logo local pré-renderização para evitar erros de Canvas no download
+                if (logoImg && logoImg.src && !logoImg.src.startsWith('data:')) {
+                    const imgTemp = new Image();
+                    imgTemp.crossOrigin = 'anonymous';
+                    imgTemp.src = logoImg.src;
+                    imgTemp.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = imgTemp.width;
+                        canvas.height = imgTemp.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(imgTemp, 0, 0);
+                        logoImg.src = canvas.toDataURL('image/png');
+                        setTimeout(tirarFotoEstrutura, 100);
+                    };
+                    imgTemp.onerror = () => tirarFotoEstrutura();
+                } else {
+                    tirarFotoEstrutura();
+                }
+            }, 300);
+        });
+
+        // DOWNLOAD DIRETO DO ARQUIVO COMPILADO (Sem reprocessamento lento)
+        document.getElementById('download-btn').addEventListener('click', () => {
+            if (!imagemUrlPronta) {
+                alert("Gere a credencial antes de tentar baixar.");
+                return;
+            }
+            const nomeInput = document.getElementById('nomeInput').value.trim().toUpperCase();
+            const nomeParaArquivo = nomeInput ? nomeInput.replace(/\s+/g, '_') : 'CREDENCIAL';
+            
+            const link = document.createElement('a');
+            link.download = `Cracha_${nomeParaArquivo}.png`;
+            link.href = imagemUrlPronta;
+            link.click();
+        });
+    </script>
+</body>
+</html>
